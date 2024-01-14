@@ -1,0 +1,539 @@
+{% extends "mychatapp/base.html" %}
+{% block content %}
+
+ {% load static %}
+ {% load custom_filters %}
+<div class="all-chats" id="all-chats">
+  
+    <div class="myProfile">
+     <span> 
+      <img class="meProfile" src="{{user.pic.url}}" alt="myprofilepic">
+     
+      @{{request.user.username}}
+     </span>
+      
+      <div class="plus">
+       <i class="fa fa-plus" onclick="addFriendDialog.showModal()"></i>
+      
+      </div>
+      
+    </div>
+    
+   
+    <input type="text" placeholder="search" id="searchInput" oninput="search()" class="search">
+    <div class="chats-container" id="chats-container">
+      <ul>
+      
+      {% include "mychatapp/chat-list.html" %}    
+      
+      </ul>
+      
+      <div class="content">
+      <ul>
+      
+        {% for friend in friends  %}
+        <li data-name="{{ friend.profile.name }}">
+          <span>
+            <p class="timing" id="timing">
+                {% if friend.latest_message_timestamp %}
+                    {% load tz %}
+                    {% timezone "Asia/Kolkata" %}
+                        {{ friend.latest_message_timestamp|format_date }}
+                        <br>
+                        {{ friend.latest_message_timestamp|date:"H:i" }}
+                    {% endtimezone %}
+                {% endif %}
+            </p>
+            <p class="total-msg">
+  
+            </p>
+        </span>
+         </li>
+         {% endfor %}
+      </ul>
+    </div>
+      
+ 
+    </div>
+  </div>
+    
+  
+
+    <div class="dmsg">
+    
+      {% if messages %}
+      <div class="messageserror" >
+          {% for message in messages %}
+              <span{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</span>
+          {% endfor %}
+      </div>
+      {% endif %}
+     </div>
+  
+
+ 
+ 
+{% if friend %}
+  <div class="personal-chats" id="detailsDiv" >
+    <div class="user-details">
+      <span>
+      
+        <span>
+          <img src="{{friend.profile.pic.url}}" class="theyProfileImg">
+          <div>
+           <p class="user-name">{{friend.profile.name}}</p>
+             </div>
+
+        </span>
+        
+      </span>
+      {% comment %} <i class="fa fa-phone"></i> {% endcomment %}
+    </div>
+    
+    <div class="text-container">
+    
+
+    
+      <div  id="chat-body">
+        {% if chats %}
+     {% for chat in chats %}
+     {% ifchanged chat.timestamp|date:"Y-m-d" %}
+     <p class="when">{{ chat.timestamp|date:"l, F j,Y" }}</p> 
+   {% endifchanged %}
+     {% if chat.msg_sender == user and chat.msg_receiver == profile %}
+     <div class="me msg" data-message-id="{{ chat.id }}" data-is-sent="true" id="message_{{ chat.id }}" oncontextmenu="showContextMenu(event, {{ chat.id }}, true)">
+        <div class="chat-body-sent-class">
+          <p>{{ chat }}</p>
+       <span class="time">{{ chat.timestamp | date:"H:i"}}</span>
+        </div>
+      </div>
+      {% elif chat.msg_sender == profile and chat.msg_receiver == user %}
+      <div class="they msg" data-message-id="{{ chat.id }}" data-is-sent="false" id="message_{{ chat.id }}" oncontextmenu="showContextMenu(event, {{ chat.id }}, false)">
+        <div>
+          <p>{{ chat }}</p>
+       <span class="time">{{chat.timestamp |date:"H:i"}}</span>
+        </div>
+      </div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+      </div> 
+      </div>
+     
+     
+   
+      <form class="forms" id="myform" method="POST" action=""> 
+      {% csrf_token %}
+    <div class="msg-box">
+   
+      <div class="msg">
+      
+        {{form.body}}
+       
+     <button id="submit" class="btn">  <b >Send</b></button> 
+      </div>
+      
+    </div>
+</form>
+    </div> 
+   
+  </div>
+
+  {% endif %}
+
+  <div class="logout-container">
+    {% if friend %}
+    <a class="closechat" href="{% url 'chat' %}"><i class="fa-solid fa-xmark"></i></a> {% endif %}
+    <a class="logout-link" href="{% url 'logout' %}">
+      <img src="{% static 'img/logout.png' %}" alt="Logout">
+      <span class="logout-text">Logout</span>
+    </a>
+  </div>
+ 
+  <dialog id="addFriendDialog" class="dialogadd">
+  
+    <form class="dialogaddform" method="post" action="">
+        {% csrf_token %}
+        {{ add_friend_form }}
+        <br>
+        <div class="btns">
+        <button class="sbtn" type="submit">Add Friend</button>
+       <span><button class="sbtn" onclick="addFriendDialog.close()">Cancel</button></span> 
+        </div>
+        <button class="closebtn" onclick="addFriendDialog.close()">x</button>
+    </form>
+    
+  
+  
+</dialog>
+<br>
+<br>
+
+ </div>
+
+  <script>
+   
+    let lastMessageTimestamp = ""; 
+   let isLastMessageDisplayed = false;
+   let counter={{num}}
+   
+  
+    function receivedMessages(){
+      let url;
+      {% if friend %}
+       
+        url = "{% url 'rec_msg' friend.profile.id %}"; 
+      {% else %}
+     
+        url = "{% url 'fetch_friends' %}";
+      {% endif %}
+      async function getJSON() {
+        try {
+          const response = await fetch(url);
+      
+          const result = await response.json();
+         // console.log("Success:", result);
+          if(result.length==0){
+
+          }
+          else{
+           let lastMsg=result[result.length-1]
+        //   console.log(lastMsg)
+            if(counter==result.length){
+           //   console.log("No New Chat")
+           //   console.log(counter)
+            }
+            else {
+              
+              let chat_body=document.getElementById("chat-body")
+          
+              let chatMessageBox=document.createElement("div")
+              chatMessageBox.classList.add("they", "msg")
+              chatMessageBox.style.cssText = "display:flex; justify-conetnt:end;";
+              let innerContent = document.createElement("div");
+              let currentTime = new Date();
+              let hours = currentTime.getHours();
+              let minutes = currentTime.getMinutes();
+              let formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            innerContent.innerHTML = `
+              <p class="text">${lastMsg}</p>
+              <span class="time">${formattedTime}</span>
+            `;
+            
+              chatMessageBox.append(innerContent)
+              chat_body.append(chatMessageBox)
+              document.getElementById("id_body").value=""
+             scrollToLastMessage();
+             // getNotification();
+           
+            }
+          }
+       counter=result.length
+    //   console.log(counter)
+      
+        } catch (error) {
+    //      console.error("Error:", error);
+        }
+      }
+      
+      
+      getJSON();
+      
+
+
+    }
+  
+    function fetchFriends(){
+      let url;
+
+
+   
+            
+       
+    
+          
+            url = "{% url 'fetch_friends' %}";
+  
+
+      async function getJSON() {
+        try {
+          const response = await fetch(url);
+      
+          const result = await response.json();
+         // console.log(result);
+          const friendsContainer = document.querySelector('.chats-container ul');
+                 friendsContainer.innerHTML = result.friends_html;
+                // friendsContainer.innerHTML = '';
+               
+      
+         
+  
+
+      
+        } catch (error) {
+      //    console.error("Error:", error);
+        }
+        getNotification();
+      }
+      
+   
+      getJSON();
+      
+
+
+    }
+   
+    
+  
+ document.getElementById('searchInput').addEventListener('keydown', function(event) {
+   if (event.key === 'Enter') {
+       event.preventDefault();
+       search();
+   }
+ })
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+            
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                  break;
+              }
+          }
+      }
+      return cookieValue;
+  }
+
+  const csrftoken = getCookie('csrftoken');
+
+  document.addEventListener("DOMContentLoaded", function () {
+   
+    scrollToLastMessage();
+    
+      
+      
+});
+
+function scrollToLastMessage() {
+  let chatContainer = document.getElementById("chat-body");
+  let lastMessage = chatContainer.lastElementChild;
+
+  if (lastMessage) {
+      lastMessage.scrollIntoView();
+  }
+}
+
+    let form=document.getElementById("myform")
+
+   
+     
+//form.addEventListener("submit",sendChat)
+    function sendChat(e){
+      e.preventDefault()
+    //  console.log("sendChat function called");
+      let chatMessage=document.getElementById("id_body").value
+     
+   //   console.log(chatMessage)
+      
+      let url;
+
+      {% if friend %}
+        
+        url = "{% url 'sent_msg' friend.profile.id %}"; 
+      {% else %}
+      
+        url = "{% url 'chat' %}";
+      {% endif %}
+    
+      
+      async function postJSON(data) {
+        try {
+          const response = await fetch(url, {
+            method: "POST", 
+            headers: {
+              "Content-Type": "application/json",
+              'X-CSRFToken': csrftoken
+              
+            },
+            body: JSON.stringify(data),
+          });
+      
+          const result = await response.json();
+        //  console.log("Success:", result);
+      
+          let chat_body=document.getElementById("chat-body")
+         
+          let chatMessageBox=document.createElement("div")
+          chatMessageBox.classList.add("me", "msg")
+          chatMessageBox.style.cssText = "display:flex;";
+          let innerContent = document.createElement("div");
+          let currentTime = new Date();
+let hours = currentTime.getHours();
+let minutes = currentTime.getMinutes();
+          let formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+innerContent.innerHTML = `
+  <p class="text">${result}</p>
+  <span class="time">${formattedTime}</span>
+`;
+       
+          chatMessageBox.append(innerContent)
+          chat_body.append(chatMessageBox)
+          document.getElementById("id_body").value=""
+          scrollToLastMessage();
+          
+        } catch (error) {
+        //  console.error("Error:", error);
+        }
+      }
+      const data = { msg: chatMessage };
+      postJSON(data);
+      
+  
+    }
+
+
+  
+function getNotification(){
+
+ 
+  let url ="{% url 'notification' %}"
+  async function getNotificationJSON() {
+    try {
+      const response = await fetch(url);
+  
+      const result = await response.json();
+      //console.log("Success:", result);
+      let chatNotificationBtn=document.getElementsByClassName("total-msg")
+ 
+      //console.log(result.length)
+      
+        for(let i=0;i<result.length;i++){
+        
+        chatNotificationBtn[i].innerText=result[i]
+     
+       
+         chatNotificationBtn[i].style.display="inline-block"
+         chatNotificationBtn[i].style.background="transparent"
+         
+        
+       
+        }
+      
+      }
+   
+     catch (error) {
+    //  console.error("Error:", error);
+    }
+  }
+  
+  getNotificationJSON()
+  
+
+ 
+
+ 
+}
+ setInterval(fetchFriends, 1000)
+//setInterval(getNotification,1000)
+setInterval(receivedMessages,1000)  
+
+
+function handleMessages() {
+  const messagesContainer = document.querySelector(".dmsg");
+  
+ 
+  if (messagesContainer) {
+   
+    setTimeout(() => {
+      messagesContainer.innerHTML = "";  
+    }, 3000);
+  }
+}
+handleMessages()
+ 
+  function search() {
+    const input = document.getElementById('searchInput');
+    const filter = input.value.toUpperCase();
+    const friendsList = document.querySelectorAll('.chats-container ul li');
+
+    friendsList.forEach(function (friend) {
+        const name = friend.getAttribute('data-name').toUpperCase();
+        const displayStyle = name.includes(filter) ? 'flex' : 'none';
+        friend.style.display = displayStyle;
+        
+    });
+}
+document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('contextmenu', function (event) {
+      const messageElement = event.target.closest('.msg');
+      if (messageElement) {
+          const messageId = messageElement.getAttribute('data-message-id');
+          showContextMenu(event, messageId);
+      }
+  });
+});
+
+function showContextMenu(event, messageId, isSentMessage) {
+  event.preventDefault();
+
+  const messageElement = document.getElementById('message_' + messageId);
+
+  
+  const existingIcon = messageElement.querySelector('.material-symbols-outlined');
+  
+  if (!existingIcon && isSentMessage) {
+     
+      const contextMenu = document.createElement('div');
+      contextMenu.classList.add('context-menu');
+
+     
+      const iconContainer = document.createElement('span');
+      iconContainer.classList.add('material-symbols-outlined', 'delete-btn');
+      iconContainer.innerHTML = '&#xe872';
+
+      iconContainer.addEventListener('click', () => deleteMessage(messageId));
+
+    
+      messageElement.appendChild(iconContainer);
+
+     
+      contextMenu.style.top = event.clientY + 'px';
+      contextMenu.style.left = event.clientX + 'px';
+
+  
+      document.body.appendChild(contextMenu);
+
+      setTimeout(() => {
+          contextMenu.remove();
+      }, 3000);  
+  }
+}
+
+function deleteMessage(messageId) {
+ 
+  fetch('/delete_message/' + messageId + '/', {
+      method: 'DELETE',
+      headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+      },
+  })
+  .then(response => response.json())
+  .then(data => {
+      if (data.status === 'success') {
+         
+          const messageElement = document.getElementById('message_' + messageId);
+          if (messageElement) {
+              messageElement.remove();
+          }
+      } else {
+          alert(data.message);
+      }
+  });
+}
+
+
+  </script>
+{% endblock content %}

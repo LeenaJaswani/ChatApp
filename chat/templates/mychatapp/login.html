@@ -1,0 +1,34 @@
+{% extends 'mychatapp/base.html' %}
+
+{% block content %}
+<div class="signup">
+<h2>Login</h2>
+<form class="sforms" method="post" action="{% url 'login' %}">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+        {{ field.label_tag }}
+        {{ field }}
+        
+    </div>
+{% endfor %}
+<br>
+    <button class="sbtn" type="submit">Login</button>
+ 
+</form> 
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }} text-danger"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    {% endif %}
+    <div class="log">
+        Don't Have an account?
+        <br>
+        <a href="{% url 'signup' %}">Signup</a></div>
+        </div>
+</div>
+
+{% endblock %}

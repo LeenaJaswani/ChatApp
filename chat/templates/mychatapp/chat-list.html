@@ -1,0 +1,29 @@
+{% load custom_filters %}
+
+{% for friend in friends %}
+    <li data-name="{{ friend.profile.name }}">
+        <img src="{{friend.profile.pic.url}}" alt="">
+        <a href="{% url 'chat' pk=friend.profile.id %}">
+            <div class="content">
+                <span>
+                    <p class="name">
+                        {% if friend.profile == user %}
+                            You
+                        {% else %}
+                            {{ friend.profile.name }}
+                            {% endif %}
+                            <p class="msg">
+                                {% comment %} {% if friend.latest_msg %} {% endcomment %}
+                                {{ friend.latest_msg.body|truncatechars:30 }} 
+                                {% comment %} {% else %} {% endcomment %}
+                                {% comment %} No messages yet {% endcomment %}
+                                {% comment %} {% endif %} {% endcomment %}
+                                </p>
+                                
+                </span>
+
+               
+            </div>
+        </a>
+    </li>
+{% endfor %}
